@@ -1,0 +1,76 @@
+install.packages('formattable')
+library(formattable)
+library(shiny)
+
+options(scipen = 999)
+
+# Define UI for application that draws a barplot
+ui <- fluidPage(
+  
+  # Application title
+  titlePanel("평균의 함정"),
+  
+  # Sidebar with a slider input for number of trials
+  verticalLayout(
+    sidebarPanel(
+      sliderInput("n_trials",
+                  "Number of trials:",
+                  min = 1,
+                  max = 1000,
+                  value = 15)
+    ),
+    
+    mainPanel(
+      fluidRow(
+        column(12, align = "center",
+               plotOutput("barPlot")
+        )
+      ),
+      fluidRow(
+        column(12, align = "center",
+               uiOutput("summaryText")
+        )
+      )
+    )
+  )
+)
+
+# Probabilities and prizes
+probs <- c(0.10, 0.20, 0.40, 0.20, 0.10)
+prizes <- c(10000, 200000, 300000, 400000, 500000)
+
+server <- function(input, output) {
+  
+  sampled_data <- reactive({
+    n <- input$n_trials
+    place <- sample(1:5, n, replace = TRUE, prob = probs) # 1에서 5 사이의 값을 n번 샘플링
+    total_prize <- sum(prizes[place])
+    list(place = place, total_prize = total_prize)
+  })
+  
+  output$barPlot <- renderPlot({
+    place <- sampled_data()$place
+    
+    # 각 상금의 횟수를 세기
+    prize_counts <- table(prizes[place])
+    
+    # 막대 그래프 그리기
+    barplot(prize_counts, main = '복권 당첨금 분포', ylab = '횟수', xlab = '상금', ylim = c(0, max(prize_counts)*1.2))
+    
+    text(x = barplot(prize_counts, main = '복권 당첨금 분포', ylab = '횟수', xlab = '상금', ylim = c(0, max(prize_counts)*1.2)),  y = prize_counts, labels = prize_counts, pos = 3, cex = 0.8, col = "black")
+  })
+  
+  output$summaryText <- renderUI({
+    n <- input$n_trials
+    total_prize <- sampled_data()$total_prize
+    
+    # Generate the summary text
+    summary_text <- paste0(n, "회 후의 총 누적 상금: ", comma(round(total_prize),0), "원, 평균 상금: ", comma(round(total_prize/n),0), "원")
+    
+    # Return the text as an HTML element
+    HTML(summary_text)
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
